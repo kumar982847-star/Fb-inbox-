@@ -6,9 +6,8 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
-import json
 
-st.title("Facebook Auto Message Tool (Fixed Version)")
+st.title("Facebook Auto Message Tool (Fully Fixed Version)")
 
 chat_id = st.text_input("Chat / Conversation ID")
 delay = st.number_input("Delay (seconds)", min_value=5, max_value=600, value=30)
@@ -37,6 +36,8 @@ if st.button("Start Automation"):
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--window-size=1920,1080")       # IMPORTANT FIX
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
 
     driver = webdriver.Chrome(options=chrome_options)
 
@@ -48,25 +49,42 @@ if st.button("Start Automation"):
         add_cookies(driver, cookies_text)
         driver.get("https://www.facebook.com/messages/t/" + chat_id)
     else:
-        st.warning("Cookies nahi diye → login page hi open hoga. Message nahi jaayega.")
+        st.warning("Cookies nahi diye → login page open hoga. Message nahi jaayega.")
 
     st.write("Automation started...")
 
     messages = messages_text.strip().split("\n")
 
+    # ALL POSSIBLE XPATH SELECTORS
+    possible_xpaths = [
+        "//p[@data-lexical-text='true']",
+        "//div[@role='textbox']",
+        "//*[@contenteditable='true']",
+        "//div[contains(@aria-label,'Message')]"
+    ]
+
     for msg in messages:
         try:
-            # Wait for message box
-            box = WebDriverWait(driver, 20).until(
-                EC.presence_of_element_located(
-                    (By.XPATH, "//p[@data-lexical-text='true']")
-                )
-            )
+            msg_box = None
 
-            box.click()
+            # TRY ALL XPATHS
+            for xp in possible_xpaths:
+                try:
+                    msg_box = WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.XPATH, xp))
+                    )
+                    break
+                except:
+                    pass
+
+            if not msg_box:
+                st.error("Message box nahi mil raha. Cookies ya chat ID galat ho sakti hai.")
+                continue
+
+            msg_box.click()
             time.sleep(1)
-            box.send_keys(msg)
-            box.send_keys(Keys.ENTER)
+            msg_box.send_keys(msg)
+            msg_box.send_keys(Keys.RETURN)
 
             st.write(f"Sent: {msg}")
             time.sleep(delay)
